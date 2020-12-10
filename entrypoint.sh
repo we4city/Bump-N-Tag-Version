@@ -1,5 +1,13 @@
-#!/bin/sh -l
+#!/bin/bash -l
 set -e
+
+# Validations
+if [ -z "$GITHUB_TOKEN" ]; then
+	echo "Set the GITHUB_TOKEN env variable."
+	exit 1
+fi
+
+
 
 file_name=$1
 tag_version=$2
@@ -10,6 +18,10 @@ echo "Git Base Ref: ${GITHUB_BASE_REF}"
 echo "Git Event Name: ${GITHUB_EVENT_NAME}"
 
 echo "\nStarting Git Operations"
+set -o xtrace
+
+git fetch origin $BRANCH
+git checkout $BRANCH
 git config --global user.email "Bump-N-Tag@github-action.com"
 git config --global user.name "Bump-N-Tag App"
 
@@ -43,27 +55,29 @@ else
     echo "\nValid version string found"
 fi
 
-major=$(echo $extract_string | cut -d'.' -f1) 
-major=${major:(-2)}
-minor=$(echo $extract_string | cut -d'.' -f2)
-patch=$(echo $extract_string | cut -d'.' -f3)
-build=$(echo $extract_string | cut -d'.' -f4)
 
-if [[ $build = "" ]]; then
-    oldver=$(echo $major.$minor.$patch)
-    patch=$(expr $patch + 1)
-    newver=$(echo $major.$minor.$patch)
-else
-    oldver=$(echo $major.$minor.$patch.$build)
-    build=$(expr $build + 1)
-    newver=$(echo $major.$minor.$patch.$build)
-fi
+increment_version() {
+    for v in $1 ; do
+        num=${v//./}
+        let num++
 
-echo "\nOld Ver: $oldver"
-echo "\nUpdated version: $newver" 
+        re=${v//./)(}
+        re=${re//[0-9]/.}')'
+        re=${re#*)}
 
-newcontent=$(echo ${content/$oldver/$newver})
-echo $newcontent > $file_name
+        count=${v//[0-9]/}
+        count=$(wc -c<<<$count)
+        out=''
+        for ((i=count-1;i>0;i--)) ; do
+            out='.\'$i$out
+        done
+
+        sed -r s/$re$/$out/ <<<$num
+    done
+}
+
+
+newver=$(increment_version $extract_string)
 
 git add -A 
 git commit -m "Incremented to ${newver}"  -m "[skip ci]"
