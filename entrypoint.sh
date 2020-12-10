@@ -79,8 +79,12 @@ increment_version() {
 
 newver=$(increment_version $extract_string)
 
+
+echo 'Updated from' $extract_string ' to ' $newver
+
 git add -A 
-git commit -m "Incremented to ${newver}"  -m "[skip ci]"
+git commit -m "New Version ${newver}"  -m "[skip ci]"
+
 ([ -n "$tag_version" ] && [ "$tag_version" = "true" ]) && (git tag -a "${newver}" -m "[skip ci]") || echo "No tag created"
 
 git show-ref
